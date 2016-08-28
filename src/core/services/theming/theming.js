@@ -546,12 +546,42 @@ function ThemingProvider($mdColorPalette, $$mdMetaProvider) {
           applyTheme.inherit(el, el);
         };
 
-    applyTheme.THEMES = angular.extend({}, THEMES);
-    applyTheme.PALETTES = angular.extend({}, PALETTES);
+    Object.defineProperty(applyTheme, 'THEMES', {
+      get: function () {
+        return angular.extend({}, THEMES);
+      }
+    });
+    Object.defineProperty(applyTheme, 'PALETTES', {
+      get: function () {
+        return angular.extend({}, PALETTES);
+      }
+    });
     applyTheme.inherit = inheritTheme;
     applyTheme.registered = registered;
     applyTheme.defaultTheme = function() { return defaultTheme; };
     applyTheme.generateTheme = function(name) { generateTheme(THEMES[name], name, themeConfig.nonce); };
+    applyTheme.defineTheme = function (name, options) {
+      options = options || {};
+
+      var theme = registerTheme(name);
+
+      if (options.primary) {
+        theme.primaryPalette(options.primary);
+      }
+      if (options.accent) {
+        theme.accentPalette(options.accent);
+      }
+      if (options.warn) {
+        theme.warnPalette(options.warn);
+      }
+      if (options.background) {
+        theme.backgroundPalette(options.background);
+      }
+
+      this.generateTheme(name);
+
+      return theme;
+    };
     applyTheme.setBrowserColor = enableBrowserColor;
 
     return applyTheme;
@@ -573,6 +603,7 @@ function ThemingProvider($mdColorPalette, $$mdMetaProvider) {
       var watchTheme = (alwaysWatchTheme || angular.isDefined(attrThemeValue)) && attrThemeValue != 'false';
 
       updateThemeClass(lookupThemeName());
+      //$rootScope.$watch(lookupThemeName, updateThemeClass);
 
       if ((alwaysWatchTheme && !registerChangeCallback()) || (!alwaysWatchTheme && watchTheme)) {
         el.on('$destroy', $rootScope.$watch(lookupThemeName, updateThemeClass) );
@@ -623,7 +654,7 @@ function ThemingProvider($mdColorPalette, $$mdMetaProvider) {
   }
 }
 
-function ThemingDirective($mdTheming, $interpolate, $log) {
+function ThemingDirective($mdTheming, $interpolate, $parse, $q, $log) {
   return {
     priority: 100,
     link: {
@@ -656,9 +687,23 @@ function ThemingDirective($mdTheming, $interpolate, $log) {
             });
           }
         };
-        el.data('$mdThemeController', ctrl);
-        ctrl.$setTheme($interpolate(attrs.mdTheme)(scope));
-        attrs.$observe('mdTheme', ctrl.$setTheme);
+
+        scope.$watch(function () { return $interpolate(attrs.mdTheme)(scope); },
+          function (interpolation) {
+            var theme = $parse(interpolation)(scope) || interpolation;
+
+            var promise = $q.resolve(theme);
+
+            if (typeof theme === 'function') {
+              promise = theme();
+            }
+
+            el.data('$mdThemeController', ctrl);
+
+            promise.then(function (name) {
+              ctrl.$setTheme(name);
+            });
+          });
       }
     }
   };

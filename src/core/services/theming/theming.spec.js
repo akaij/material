@@ -737,6 +737,17 @@ describe('$mdTheming service', function() {
     expect($mdTheming.defaultTheme()).toBe('default');
   }));
 
+  it('supports registering theme on the fly', inject(function ($mdTheming) {
+    expect($mdTheming.THEMES.hasOwnProperty('test')).toBeFalsy();
+
+    $mdTheming.defineTheme('test', {
+      primary: 'red',
+      warn: 'yellow'
+    });
+
+    expect($mdTheming.THEMES.hasOwnProperty('test')).toBeTruthy();
+  }));
+
   it('supports changing browser color on the fly', function() {
     var name = 'theme-color';
     var primaryPalette = $mdThemingProvider._THEMES.default.colors.primary.name;
